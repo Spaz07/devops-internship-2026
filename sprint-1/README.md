@@ -1,8 +1,8 @@
-# Sprint 1 – Nginx Log Analyzer
+# Sprint 1 – Scripting & Log Analysis
 
 ## Overview
 
-A Python CLI script that parses standard Nginx access logs and generates basic traffic analytics in JSON format.
+A Python CLI tool that parses standard Nginx access logs and generates basic traffic analytics in JSON format.
 
 ## Requirements
 
