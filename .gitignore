@@ -1,0 +1,5 @@
+sprint-2/.venv/
+sprint-2/__pycache__/
+sprint-2/.pytest_cache/
+sprint-2/.coverage
+sprint-2/coverage.xml
