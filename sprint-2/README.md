@@ -28,3 +28,5 @@ pytest
 flake8 app.py test_app.py
 pytest --cov=app --cov-report=xml
 ```
+
+CI workflow verified successfully through GitHub Actions.
