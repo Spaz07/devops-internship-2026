@@ -22,8 +22,8 @@ def analyze_log(filename):
 
 
 if len(sys.argv) != 3 or sys.argv[1] not in ("--file", "--summary"):
-    print("Usage: python app.py --file <log_file>")
-    print("       python app.py --summary <log_file>")
+    print(f"Usage: python {sys.argv[0]} --file <log_file>")
+    print(f"       python {sys.argv[0]} --summary <log_file>")
     sys.exit(1)
 
 analyze_log(sys.argv[2])
