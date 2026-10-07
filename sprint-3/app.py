@@ -21,8 +21,8 @@ def analyze_log(filename):
     print(f"Warnings: {warnings}")
 
 
-if len(sys.argv) != 2:
-    print("Usage: python app.py <log_file>")
+if len(sys.argv) != 3 or sys.argv[1] != "--file":
+    print("Usage: python app.py --file <log_file>")
     sys.exit(1)
 
-analyze_log(sys.argv[1])
+analyze_log(sys.argv[2])
