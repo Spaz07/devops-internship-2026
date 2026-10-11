@@ -5,16 +5,13 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*.*.*'
     paths:
       - 'sprint-4/**'
       - '.github/workflows/docker-build.yml'
 
   workflow_dispatch:
-    inputs:
-      release_tag:
-        description: 'Optional release version, e.g. v2.2.0'
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -25,16 +22,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Validate release tag
-        if: inputs.release_tag != ''
-        env:
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Invalid release tag. Expected format: v1.2.3"
-            exit 1
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -64,7 +51,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-,format=short
-            type=raw,value=${{ inputs.release_tag }},enable=${{ inputs.release_tag != '' }}
+            type=ref,event=tag
 
       - name: Build and push multi-platform image
         uses: docker/build-push-action@v6
