@@ -1,81 +1,50 @@
-
 # Sprint 4 – Multi-Platform Container Build Pipelines
 
 ## Overview
 
-This sprint demonstrates an automated Docker build pipeline using GitHub Actions, Docker Buildx, and QEMU. The pipeline builds and publishes a container image for both `linux/amd64` and `linux/arm64` architectures to GitHub Container Registry (GHCR).
+This sprint uses GitHub Actions to automatically build and publish a Docker image to GitHub Container Registry (GHCR). The image supports both `linux/amd64` and `linux/arm64` architectures.
+
+The automated build runs on GitHub-hosted runners, so a local Docker installation is not required to run the pipeline.
 
 ## Project Files
 
 - `app.py` – Displays the Python version and container architecture.
-- `Dockerfile` – Defines the Python runtime and application startup command.
-- `.github/workflows/docker-build.yml` – Automates the multi-platform build and publishing process.
+- `Dockerfile` – Defines how the container image is built.
+- `.github/workflows/docker-build.yml` – Automates building, tagging, and publishing the image.
+- `proof/` – Contains screenshots of the successful build and published image.
 
 ## Build Process
 
 1. GitHub Actions checks out the repository.
-2. QEMU enables emulation for additional CPU architectures.
-3. Docker Buildx prepares the multi-platform builder.
-4. The workflow authenticates with GHCR using `GITHUB_TOKEN`.
-5. Docker builds the image for `linux/amd64` and `linux/arm64`.
-6. The image is pushed to GHCR with generated tags.
-7. GitHub Actions build cache is used to improve subsequent builds.
+2. QEMU provides emulation support for additional architectures.
+3. Docker Buildx builds the image for `linux/amd64` and `linux/arm64`.
+4. The workflow authenticates with GHCR using GitHub's `GITHUB_TOKEN`.
+5. The image is tagged and published to GHCR.
+6. GitHub Actions cache reuses build layers when available.
 
-## Image Registry
+## Image Registry and Tags
 
 The image is published to:
 
 `ghcr.io/<owner>/<repository>`
 
-The repository and image name are derived automatically from the GitHub repository.
+The workflow generates these tags:
 
-## Image Tags
+- `latest` – Build from the default branch.
+- `sha-<commit>` – Identifies the commit used for the build.
+- `vX.Y.Z` – Version tag generated when a matching Git version tag is pushed, such as `v2.2.1`.
 
-The workflow supports these tags:
-
-- `latest` – Latest build from the default branch.
-- `sha-<commit>` – Image identified by a short commit SHA.
-- `<version>` – Version tag, such as `v1.0.0`, when building from a Git tag.
-- A manually supplied release tag can also be published using the workflow's `release_tag` input.
+Pushing a matching Git version tag triggers the workflow to build and publish an image with that version tag.
 
 ## Authentication and Permissions
 
-The workflow uses GitHub's automatically provided `GITHUB_TOKEN` to authenticate with GHCR. The workflow has `packages: write` permission to publish container images. No registry password is stored in the source code.
-
-## Multi-Platform Support
-
-The image targets:
-
-- `linux/amd64`
-- `linux/arm64`
-
-QEMU and Docker Buildx allow the workflow to build these architectures from the GitHub Actions runner.
+The workflow uses GitHub's automatically provided `GITHUB_TOKEN` and the `packages: write` permission to publish images to GHCR. No registry password is hardcoded in the workflow.
 
 ## Build Cache
 
-The pipeline uses GitHub Actions cache with `cache-from` and `cache-to` to reuse build layers and reduce build time where possible.
+The workflow uses GitHub Actions caching with `cache-from: type=gha` and `cache-to: type=gha,mode=max` to reuse build layers when possible.
 
-## Local Testing
+## Proof of Execution
 
-Build the image:
-
-```bash
-sudo docker build -t sprint4-demo:test ./sprint-4
-```
-
-Run the container:
-
-```bash
-sudo docker run --rm sprint4-demo:test
-```
-
-The application prints its Python version and the architecture reported by the running container.
-
-## Verification
-
-After a successful GitHub Actions run:
-
-1. Check the workflow run logs.
-2. Open the repository's Packages section on GitHub.
-3. Verify the published image tags.
-4. Inspect the image manifest to confirm both target architectures are available.
+- [Successful GitHub Actions build](proof/github-actions-build-success.png)
+- [Published image and multi-architecture details](proof/ghcr-multi-architecture.png)
