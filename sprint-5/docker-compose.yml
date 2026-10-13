@@ -1,0 +1,32 @@
+
+services:
+  blue:
+    build:
+      context: ./app
+    environment:
+      APP_VERSION: "blue-v1"
+      APP_HEALTHY: "true"
+    ports:
+      - "127.0.0.1:5001:5000"
+    restart: unless-stopped
+
+  green:
+    build:
+      context: ./app
+    environment:
+      APP_VERSION: "green-v2"
+      APP_HEALTHY: "true"
+    ports:
+      - "127.0.0.1:5002:5000"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d:ro
+    depends_on:
+      - blue
+      - green
+    restart: unless-stopped
