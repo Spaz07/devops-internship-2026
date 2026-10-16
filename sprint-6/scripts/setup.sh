@@ -22,7 +22,7 @@ kubectl apply --server-side --force-conflicts \
     -n argocd -f "$ARGOCD_MANIFEST"
 
 echo "Waiting for Argo CD deployments..."
-kubectl rollout status deployment --all -n argocd --timeout=300s
+kubectl wait --for=condition=Available deployment --all -n argocd --timeout=300s
 kubectl rollout status statefulset/argocd-application-controller \
     -n argocd --timeout=300s
 
