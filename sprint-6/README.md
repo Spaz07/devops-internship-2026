@@ -17,27 +17,43 @@ Docker, Kind, kubectl, Git, and access to the GitHub repository.
 
 ## Setup
 
-From the repository root, run:
+Clone the repository and enter its directory:
+
+```bash
+git clone https://github.com/Spaz07/devops-internship-2026.git
+cd devops-internship-2026
+```
+
+Run the setup script from the repository root:
 
 ```bash
 bash sprint-6/scripts/setup.sh
 ```
 
-Connect the GitHub repository in the Argo CD UI under **Settings → Repositories**. For a private repository, configure a GitHub token with read access to repository contents.
+Connect the GitHub repository in the Argo CD UI under **Settings → Repositories**. Configure repository credentials with read access if authentication is required.
 
-Create the Application:
+Create the Argo CD Application:
 
 ```bash
 kubectl apply -f sprint-6/application.yaml
 ```
 
-Access the UI:
+Access the UI by running:
 
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 8081:443
 ```
 
 Open https://localhost:8081. Keep the port-forward command running while using the UI.
+
+Retrieve the initial admin password:
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+echo
+```
+
+Log in with username `admin` and the retrieved password.
 
 ## Testing and Results
 
