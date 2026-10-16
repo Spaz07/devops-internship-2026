@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-web
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Spaz07/devops-internship-2026.git
+    targetRevision: main
+    path: sprint-6/k8s-manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
