@@ -1,0 +1,83 @@
+name: Sprint 7 - Resilient Deployment and Rollback
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "sprint-7/**"
+      - ".github/workflows/sprint-7-rollback.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  healthy-deployment:
+    name: Verify healthy v2.0 deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: |
+          docker build -t sprint-7-app:v1.0 ./sprint-7/app
+          docker build -t sprint-7-app:v2.0 ./sprint-7/app
+          docker build -t sprint-7-app:v2.0-broken ./sprint-7/app
+
+      - name: Deploy baseline v1.0
+        run: ./sprint-7/scripts/deploy.sh v1.0
+
+      - name: Deploy healthy v2.0
+        run: ./sprint-7/scripts/deploy.sh v2.0
+
+      - name: Verify v2.0 remains active
+        run: |
+          test "$(cat sprint-7/state/active-version)" = "v2.0"
+          curl -fsS http://127.0.0.1:8090/health
+          curl -fsS http://127.0.0.1:8090/api/status
+          echo "PASS: v2.0 is active and healthy"
+
+  rollback-test:
+    name: Verify rollback from broken release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: |
+          docker build -t sprint-7-app:v1.0 ./sprint-7/app
+          docker build -t sprint-7-app:v2.0 ./sprint-7/app
+          docker build -t sprint-7-app:v2.0-broken ./sprint-7/app
+
+      - name: Deploy baseline v1.0
+        run: ./sprint-7/scripts/deploy.sh v1.0
+
+      - name: Reject broken release and verify rollback
+        shell: bash
+        run: |
+          set +e
+          ./sprint-7/scripts/deploy.sh v2.0-broken
+          result=$?
+          set -e
+
+          if [[ "$result" -ne 1 ]]; then
+            echo "::error::Expected rejected deployment exit code 1, got $result"
+            exit 1
+          fi
+
+          echo "Broken release rejected as expected"
+
+          if [[ "$(cat sprint-7/state/active-version)" != "v1.0" ]]; then
+            echo "::error::Active version is not v1.0 after rollback"
+            exit 1
+          fi
+
+          curl -fsS http://127.0.0.1:8090/health
+          curl -fsS http://127.0.0.1:8090/api/status
+
+          echo "PASS: Rollback to v1.0 verified"

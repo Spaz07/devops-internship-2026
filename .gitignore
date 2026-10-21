@@ -3,3 +3,6 @@ sprint-2/__pycache__/
 sprint-2/.pytest_cache/
 sprint-2/.coverage
 sprint-2/coverage.xml
+
+# Sprint 7 runtime deployment state
+/sprint-7/state/active-version
