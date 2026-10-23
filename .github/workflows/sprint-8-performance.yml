@@ -1,0 +1,98 @@
+
+name: Sprint 8 - Performance Testing
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "sprint-8/**"
+      - ".github/workflows/sprint-8-performance.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "sprint-8/**"
+      - ".github/workflows/sprint-8-performance.yml"
+  workflow_dispatch:
+
+jobs:
+  performance-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build application image
+        run: docker build -t sprint-8-app:ci ./sprint-8/app
+
+      - name: Create Docker network
+        run: docker network create sprint-8-net
+
+      - name: Start healthy application
+        run: |
+          docker run -d \
+            --name sprint-8-app \
+            --network sprint-8-net \
+            -p 5000:5000 \
+            -e API_DELAY=0 \
+            sprint-8-app:ci
+
+      - name: Wait for application readiness
+        run: |
+          for i in {1..15}; do
+            if curl -fsS http://localhost:5000/health; then
+              echo
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Application did not become healthy"
+          docker logs sprint-8-app
+          exit 1
+
+      - name: Run healthy performance test
+        run: |
+          docker run --rm \
+            --network sprint-8-net \
+            -e BASE_URL=http://sprint-8-app:5000 \
+            -v "$PWD/sprint-8/k6:/scripts:ro" \
+            grafana/k6 run /scripts/performance.js
+
+      - name: Introduce artificial latency
+        run: |
+          docker rm -f sprint-8-app
+          docker run -d \
+            --name sprint-8-app \
+            --network sprint-8-net \
+            -p 5000:5000 \
+            -e API_DELAY=1 \
+            sprint-8-app:ci
+
+      - name: Verify latency gate rejects slow application
+        shell: bash
+        run: |
+          sleep 2
+
+          if docker run --rm \
+            --network sprint-8-net \
+            -e BASE_URL=http://sprint-8-app:5000 \
+            -v "$PWD/sprint-8/k6:/scripts:ro" \
+            grafana/k6 run /scripts/performance.js \
+            > /tmp/k6-slow.log 2>&1; then
+            cat /tmp/k6-slow.log
+            echo "ERROR: Slow application unexpectedly passed"
+            exit 1
+          else
+            status=$?
+          fi
+
+          cat /tmp/k6-slow.log
+
+          if ! grep -q "thresholds on metrics" /tmp/k6-slow.log; then
+            echo "ERROR: k6 failed for a reason other than a threshold violation"
+            exit 1
+          fi
+
+          echo "Expected latency threshold failure confirmed (exit code: $status)"
