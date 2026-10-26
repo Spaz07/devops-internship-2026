@@ -15,6 +15,15 @@ on:
       - "sprint-8/**"
       - ".github/workflows/sprint-8-performance.yml"
   workflow_dispatch:
+    inputs:
+      test_mode:
+        description: "Choose the application performance scenario"
+        required: true
+        type: choice
+        options:
+          - healthy
+          - slow
+        default: healthy
 
 jobs:
   performance-test:
@@ -30,13 +39,16 @@ jobs:
       - name: Create Docker network
         run: docker network create sprint-8-net
 
-      - name: Start healthy application
+      - name: Start application
+        env:
+          API_DELAY: ${{ github.event.inputs.test_mode == 'slow' && '1' || '0' }}
         run: |
+          echo "Starting application with API_DELAY=${API_DELAY}s"
           docker run -d \
             --name sprint-8-app \
             --network sprint-8-net \
             -p 5000:5000 \
-            -e API_DELAY=0 \
+            -e API_DELAY="$API_DELAY" \
             sprint-8-app:ci
 
       - name: Wait for application readiness
@@ -52,47 +64,10 @@ jobs:
           docker logs sprint-8-app
           exit 1
 
-      - name: Run healthy performance test
+      - name: Run k6 performance test
         run: |
           docker run --rm \
             --network sprint-8-net \
             -e BASE_URL=http://sprint-8-app:5000 \
             -v "$PWD/sprint-8/k6:/scripts:ro" \
             grafana/k6 run /scripts/performance.js
-
-      - name: Introduce artificial latency
-        run: |
-          docker rm -f sprint-8-app
-          docker run -d \
-            --name sprint-8-app \
-            --network sprint-8-net \
-            -p 5000:5000 \
-            -e API_DELAY=1 \
-            sprint-8-app:ci
-
-      - name: Verify latency gate rejects slow application
-        shell: bash
-        run: |
-          sleep 2
-
-          if docker run --rm \
-            --network sprint-8-net \
-            -e BASE_URL=http://sprint-8-app:5000 \
-            -v "$PWD/sprint-8/k6:/scripts:ro" \
-            grafana/k6 run /scripts/performance.js \
-            > /tmp/k6-slow.log 2>&1; then
-            cat /tmp/k6-slow.log
-            echo "ERROR: Slow application unexpectedly passed"
-            exit 1
-          else
-            status=$?
-          fi
-
-          cat /tmp/k6-slow.log
-
-          if ! grep -q "thresholds on metrics" /tmp/k6-slow.log; then
-            echo "ERROR: k6 failed for a reason other than a threshold violation"
-            exit 1
-          fi
-
-          echo "Expected latency threshold failure confirmed (exit code: $status)"

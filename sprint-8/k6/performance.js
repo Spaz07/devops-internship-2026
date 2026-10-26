@@ -1,11 +1,10 @@
-
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 export const options = {
   stages: [
-    { duration: '10s', target: 10 },
-    { duration: '20s', target: 10 },
+    { duration: '30s', target: 20 },
+    { duration: '10s', target: 20 },
     { duration: '5s', target: 0 },
   ],
   thresholds: {
@@ -20,13 +19,13 @@ export default function () {
   const itemsRes = http.get(`${BASE_URL}/api/items`);
 
   check(itemsRes, {
-    'items status is 200': (r) => r.status === 200,
+    'GET items status is 200': (r) => r.status === 200,
   });
 
-  const dataRes = http.get(`${BASE_URL}/api/data`);
+  const dataRes = http.post(`${BASE_URL}/api/data`, JSON.stringify({}));
 
   check(dataRes, {
-    'data status is 200': (r) => r.status === 200,
+    'POST data status is 200': (r) => r.status === 200,
   });
 
   sleep(1);
