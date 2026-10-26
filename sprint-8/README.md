@@ -1,28 +1,36 @@
-# Sprint 8 – Performance Testing with k6
+# Sprint 8 – Continuous Performance Testing & SLA Gates
 
 ## Overview
 
-This sprint demonstrates automated performance testing using Grafana k6. A Flask API runs in Docker, and k6 generates requests to measure response times and verify performance thresholds.
-
-The goal is to ensure that a healthy application passes performance checks while an application with excessive latency is rejected by the performance gate.
+This sprint integrates automated performance testing using Grafana k6 into GitHub Actions. A Flask API runs in Docker, and k6 simulates concurrent users to measure response times and verify service-level objectives (SLOs).
 
 ## Implementation
 
-The Flask application provides health, sample-items, and data endpoints. The k6 test sends requests with up to 10 virtual users and checks:
+The application exposes:
 
-- 95th-percentile response time below 200 ms.
+- `GET /api/items` – retrieves sample items.
+- `POST /api/data` – returns sample data and supports configurable artificial latency.
+- `GET /health` – checks application health.
+
+The k6 test ramps up to 20 virtual users over 30 seconds and tests both API endpoints.
+
+**Performance thresholds:**
+- 95th-percentile response time (`p(95)`) below 200 ms.
 - HTTP request failure rate below 1%.
-- Successful HTTP responses from the tested endpoints.
 
-Artificial latency can be enabled through the `API_DELAY` environment variable to simulate a slow application.
+The `API_DELAY` environment variable introduces artificial latency to demonstrate the performance gate.
 
-## Running the Tests
+## Running Locally
 
-Build and start the application from the repository root:
+Build the application image:
 
 ```bash
 docker build -t sprint-8-app:latest ./sprint-8/app
+```
 
+Start the healthy application:
+
+```bash
 docker run -d --name sprint-8-app \
   -p 5000:5000 sprint-8-app:latest
 ```
@@ -47,17 +55,23 @@ docker run -d --name sprint-8-app \
   sprint-8-app:latest
 ```
 
-Run the same k6 command again. The test should fail because the response-time threshold is exceeded, even though the API may still return HTTP 200.
+Run the same k6 command again. The performance threshold should fail because the response time exceeds 200 ms.
 
 ## GitHub Actions
 
-The workflow at `.github/workflows/sprint-8-performance.yml` automates both scenarios when relevant Sprint 8 files change on pushes or pull requests targeting `main`. It can also be triggered manually.
+The workflow is located at `.github/workflows/sprint-8-performance.yml`.
 
-The workflow passes when the healthy application passes its performance test and the slow application is correctly rejected by the latency threshold.
+- **Healthy scenario:** runs automatically on relevant pushes and pull requests, and should pass when the SLOs are met.
+- **Slow scenario:** select `slow` using the manual **Run workflow** option. The artificial delay causes the latency threshold to fail, making the workflow fail as expected.
 
 ## Proof
 
-- [Baseline test – Passed](proof/baseline-pass.png)
-- [Latency test – Threshold failure expected](proof/latency-fail.png)
+### Local k6 Tests
 
-The successful GitHub Actions run also confirms that the performance gate behaves as expected.
+- [Healthy application – Passed](proof/baseline-pass.png)
+- [Artificial latency – Threshold failure](proof/latency-fail.png)
+
+### GitHub Actions CI Runs
+
+- [Healthy CI run – Passed](proof/ci-healthy.png)
+- [Slow application – CI latency gate failed](proof/ci-slow-failure.png)
