@@ -1,0 +1,16 @@
+services:
+  localemu:
+    image: localemu/localemu:stable
+    container_name: sprint-9-localemu
+    ports:
+      - "4566:4566"
+    environment:
+      LAMBDA_DOCKER_NETWORK: sprint-9-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - sprint9
+
+networks:
+  sprint9:
+    name: sprint-9-network

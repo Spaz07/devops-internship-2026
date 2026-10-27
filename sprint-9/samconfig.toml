@@ -1,0 +1,8 @@
+version = 0.1
+
+[default.build.parameters]
+cached = false
+parallel = true
+
+[default.validate.parameters]
+lint = true

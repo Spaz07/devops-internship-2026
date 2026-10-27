@@ -6,3 +6,10 @@ sprint-2/coverage.xml
 
 # Sprint 7 runtime deployment state
 /sprint-7/state/active-version
+
+# Local Python environment and SAM build output
+/.venv/
+/.aws-sam/
+__pycache__/
+.pytest_cache/
+.coverage

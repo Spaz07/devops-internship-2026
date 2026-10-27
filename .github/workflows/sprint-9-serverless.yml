@@ -1,0 +1,151 @@
+name: Sprint 9 Serverless CI/CD
+
+on:
+  push:
+    paths:
+      - 'sprint-9/**'
+      - '.github/workflows/sprint-9-serverless.yml'
+  pull_request:
+    paths:
+      - 'sprint-9/**'
+      - '.github/workflows/sprint-9-serverless.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AWS_ENDPOINT_URL: http://localhost:4566
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  AWS_DEFAULT_REGION: us-east-1
+
+jobs:
+  deploy-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Install dependencies
+        run: |
+          python -m pip install pytest boto3
+
+      - name: Run unit tests
+        run: python -m pytest sprint-9/tests -v
+
+      - name: Validate SAM template
+        run: sam validate --template-file sprint-9/template.yaml
+
+      - name: Build serverless application
+        run: sam build --template-file sprint-9/template.yaml
+
+      - name: Start LocalEmu
+        run: |
+          docker network create sprint-9-network
+
+          docker run -d \
+            --name sprint-9-localemu \
+            --network sprint-9-network \
+            -p 4566:4566 \
+            -e LAMBDA_DOCKER_NETWORK=sprint-9-network \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            localemu/localemu:stable
+
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:4566/ >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+
+          curl -fsS http://localhost:4566/ >/dev/null
+
+      - name: Create deployment artifact bucket
+        run: |
+          docker exec sprint-9-localemu sh -lc \
+            '. /opt/code/localemu/.venv/bin/activate && awsemu s3 mb s3://sprint-9-artifacts'
+
+      - name: Package SAM application
+        run: |
+          sam package \
+            --template-file .aws-sam/build/template.yaml \
+            --s3-bucket sprint-9-artifacts \
+            --output-template-file .aws-sam/packaged.yaml
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprint-9-package
+          path: .aws-sam/packaged.yaml
+          if-no-files-found: error
+
+      - name: Deploy stack through CloudFormation
+        run: |
+          sam deploy \
+            --template-file .aws-sam/packaged.yaml \
+            --stack-name sprint-9 \
+            --s3-bucket sprint-9-artifacts \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset
+
+      - name: Test deployed API Gateway
+        run: |
+          API_ID=$(docker exec sprint-9-localemu sh -lc \
+            '. /opt/code/localemu/.venv/bin/activate && awsemu cloudformation describe-stacks --stack-name sprint-9' \
+            | python -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          outputs = data["Stacks"][0].get("Outputs", [])
+          url = next(o["OutputValue"] for o in outputs if o["OutputKey"] == "ItemsApiUrl")
+          print(url.split("//", 1)[1].split(".", 1)[0])
+          ')
+
+          API_URL="http://localhost:4566/restapis/${API_ID}/Prod/_user_request_/items"
+          echo "Testing deployed endpoint: $API_URL"
+
+          POST_STATUS=$(curl --silent --show-error \
+            -X POST "$API_URL" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"Sprint 9 CI test"}' \
+            -o /tmp/post.json -w '%{http_code}')
+
+          echo "POST /items -> HTTP $POST_STATUS"
+          test "$POST_STATUS" = "201"
+
+          GET_STATUS=$(curl --silent --show-error \
+            "$API_URL" \
+            -o /tmp/get.json -w '%{http_code}')
+
+          echo "GET /items -> HTTP $GET_STATUS"
+          test "$GET_STATUS" = "200"
+
+          python - <<'PY'
+          import json
+
+          with open("/tmp/post.json") as f:
+              created = json.load(f)["item"]
+
+          with open("/tmp/get.json") as f:
+              items = json.load(f)["items"]
+
+          assert created["name"] == "Sprint 9 CI test"
+          assert any(item["id"] == created["id"] for item in items)
+
+          print("PASS: deployed POST created an item.")
+          print("PASS: deployed GET retrieved that item from DynamoDB.")
+          PY
+
+      - name: Show diagnostics on failure
+        if: failure()
+        run: |
+          docker logs sprint-9-localemu || true
