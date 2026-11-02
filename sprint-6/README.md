@@ -57,7 +57,7 @@ Log in with username `admin` and the retrieved password.
 
 ## Testing and Results
 
-- **Auto-sync:** Changed the replica count from 2 to 3 in Git and pushed commit `20077d7`. Argo CD updated the Deployment to three replicas without manually applying the changed manifest.
+- **Auto-sync:** Changed the replica count from 2 to 3 in Git and pushed commit `23b7ae8`. Argo CD automatically updated the Deployment to three replicas without manually applying the changed manifest.
 - **Self-healing:** Scaled the Deployment down to one replica. Argo CD restored it to three replicas.
 - **Verification:** The Deployment reached `3/3` ready replicas, and the Application reported `Synced` and `Healthy`.
 
@@ -70,5 +70,5 @@ Git is the source of truth. Automated sync keeps the cluster updated with commit
 Screenshots are available in `proof/`:
 
 - `argocd-healthy-synced.png` – Argo CD status.
-- `gitops-auto-sync-commit.png` – Git commit history.
+- `gitops-auto-sync-commit.png` – Git commit, manifest diff, live Kubernetes replica count, and Argo CD sync status.
 - `gitops-self-healing.png` – Self-healing test output.
