@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ci-cli"
+version = "1.0.0"
+dependencies = ["requests>=2.31.0"]
+
+[tool.setuptools]
+py-modules = ["ci_cli"]
+
+[project.scripts]
+ci-cli = "ci_cli:main"
